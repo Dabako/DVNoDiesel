@@ -1,0 +1,17 @@
+{
+  "Id": "NoDiesel",
+  "DisplayName": "No Diesel - Steam Only",
+  "Author": "Dabako",
+  "Version": "0.5.0",
+  "ManagerVersion": "0.27.3",
+  "AssemblyName": "NoDiesel.dll",
+  "EntryMethod": "NoDiesel.Main.Load",
+  "HomePage": "https://github.com/Dabako/DVNoDiesel",
+  "Repository": "https://raw.githubusercontent.com/Dabako/DVNoDiesel/main/repository.json",
+  "LoadAfter": [
+    "DVCustomCarLoader",
+    "DVCustomLicenses",
+    "Multiplayer"
+  ],
+  "MultiplayerCompatibility": "Host"
+}

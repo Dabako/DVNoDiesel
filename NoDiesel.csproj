@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Build: dotnet build -c Release -p:DvInstallDir="C:\Path\To\Derail Valley" -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>9</LangVersion>
+    <AssemblyName>NoDiesel</AssemblyName>
+    <RootNamespace>NoDiesel</RootNamespace>
+    <DvInstallDir Condition="'$(DvInstallDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Derail Valley</DvInstallDir>
+    <DvManaged>$(DvInstallDir)\DerailValley_Data\Managed</DvManaged>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="$(DvManaged)\Assembly-CSharp.dll" Private="false" />
+    <Reference Include="$(DvManaged)\DV.ThingTypes.dll" Private="false" />
+    <Reference Include="$(DvManaged)\DV.Utils.dll" Private="false" />
+    <Reference Include="$(DvManaged)\DV.Common.dll" Private="false" />
+    <Reference Include="$(DvManaged)\UnityEngine.dll" Private="false" />
+    <Reference Include="$(DvManaged)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="$(DvManaged)\UnityModManager\UnityModManager.dll" Private="false" />
+    <Reference Include="$(DvManaged)\UnityModManager\0Harmony.dll" Private="false" />
+  </ItemGroup>
+</Project>
