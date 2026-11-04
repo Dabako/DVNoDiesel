@@ -14,8 +14,8 @@ namespace NoDiesel
     {
         internal static UnityModManager.ModEntry Mod;
 
-        // Livery IDs of modded (Custom Car Loader) steam locomotives.
-        // The game's CarTypes.IsSteamLocomotive only knows the S282 and S060.
+        // Livery IDs of modded steam locomotives that count as steam on top of CarTypes.IsSteamLocomotive.
+        // Custom Car Loader already reports locomotives whose author set its IsSteamLocomotive flag there.
         internal static HashSet<string> ExtraSteamIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         const string IdsFile = "steam_ids.txt";
@@ -27,6 +27,8 @@ namespace NoDiesel
             {
                 LoadIds();
                 new Harmony(modEntry.Info.Id).PatchAll(Assembly.GetExecutingAssembly());
+                modEntry.OnGUI = SteamTools.OnGUI;
+                modEntry.OnUpdate = SteamTools.OnUpdate;
             }
             catch (Exception e)
             {
@@ -146,8 +148,96 @@ namespace NoDiesel
                 }
                 saveGameData.SetStringArray(StartLicenses.GeneralKey, list.ToArray());
                 Main.Log("New career start licenses: " + string.Join(", ", list));
+                SteamTools.GiveOnNextLoad = true;
             }
             catch (Exception e) { Main.Mod?.Logger.LogException(e); }
+        }
+    }
+
+    // A steam engine can't be run without these: new careers get them, and the UMM settings
+    // (Ctrl+F10) have a button for existing saves. Items already in the inventory are skipped.
+    internal static class SteamTools
+    {
+        static readonly string[] Items = { "shovel", "lighter", "Oiler" };
+        static string status = "";
+
+        internal static bool GiveOnNextLoad;
+
+        static bool InGame =>
+            AStartGameData.carsAndJobsLoadingFinished
+            && PlayerManager.PlayerTransform != null
+            && DV.Utils.SingletonBehaviour<StartingItemsController>.Instance.itemsLoaded;
+
+        internal static void OnUpdate(UnityModManager.ModEntry modEntry, float dt)
+        {
+            if (!GiveOnNextLoad || !InGame) return;
+            GiveOnNextLoad = false;
+            Main.Log("New career tools: " + Give());
+        }
+
+        internal static void OnGUI(UnityModManager.ModEntry modEntry)
+        {
+            if (!InGame)
+            {
+                GUILayout.Label("Load a save to get the steam tools (shovel, lighter, oil can).");
+                return;
+            }
+            if (GUILayout.Button("Give me a shovel, lighter and oil can", GUILayout.Width(320)))
+                status = Give();
+            if (status.Length > 0) GUILayout.Label(status);
+        }
+
+        static string Give()
+        {
+            var results = new List<string>();
+            foreach (var name in Items)
+            {
+                try
+                {
+                    var inventory = DV.Utils.SingletonBehaviour<DV.InventorySystem.Inventory>.Instance;
+                    var owned = inventory.GetItemsArray(false)
+                        .Where(o => o != null)
+                        .Select(o => o.GetComponent<InventoryItemSpec>())
+                        .FirstOrDefault(s => s != null && s.ItemPrefabName == name);
+                    if (owned != null)
+                    {
+                        // Also repairs items handed out before they were marked as the player's.
+                        owned.BelongsToPlayer = true;
+                        results.Add(name + ": already have it");
+                        continue;
+                    }
+                    // Dropped or stored somewhere else: the lost and found can bring it back.
+                    bool ownedElsewhere = DV.Utils.SingletonBehaviour<StorageController>.Instance.GetAllStorageItems()
+                        .Where(i => i != null)
+                        .Select(i => i.GetComponent<InventoryItemSpec>())
+                        .Any(s => s != null && s.BelongsToPlayer && s.ItemPrefabName == name);
+                    if (ownedElsewhere)
+                    {
+                        results.Add(name + ": you already own one, check the lost and found");
+                        continue;
+                    }
+                    var spec = DV.Globals.G.Items.items.FirstOrDefault(i =>
+                        i != null && string.Equals(i.ItemPrefabName, name, StringComparison.OrdinalIgnoreCase));
+                    if (spec == null)
+                    {
+                        results.Add(name + ": not found");
+                        continue;
+                    }
+                    var item = UnityEngine.Object.Instantiate(spec.gameObject);
+                    item.name = spec.ItemPrefabName;
+                    // Same as a shop purchase: the lost and found only returns the player's items.
+                    item.GetComponent<InventoryItemSpec>().BelongsToPlayer = true;
+                    item.SetActive(true);
+                    inventory.AddItemToInventory(item);
+                    results.Add(name + ": added");
+                }
+                catch (Exception e)
+                {
+                    Main.Mod?.Logger.LogException(e);
+                    results.Add(name + ": failed, see log");
+                }
+            }
+            return string.Join(", ", results);
         }
     }
 

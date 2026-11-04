@@ -20,6 +20,8 @@
     <Reference Include="$(DvManaged)\DV.Common.dll" Private="false" />
     <Reference Include="$(DvManaged)\UnityEngine.dll" Private="false" />
     <Reference Include="$(DvManaged)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="$(DvManaged)\UnityEngine.IMGUIModule.dll" Private="false" />
+    <Reference Include="$(DvManaged)\DV.Inventory.dll" Private="false" />
     <Reference Include="$(DvManaged)\UnityModManager\UnityModManager.dll" Private="false" />
     <Reference Include="$(DvManaged)\UnityModManager\0Harmony.dll" Private="false" />
   </ItemGroup>
