@@ -11,6 +11,7 @@
   "LoadAfter": [
     "DVCustomCarLoader",
     "DVCustomLicenses",
+    "Contracts",
     "Multiplayer"
   ],
   "MultiplayerCompatibility": "Host"

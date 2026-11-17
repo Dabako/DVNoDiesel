@@ -13,6 +13,7 @@ namespace NoDiesel
     public static class Main
     {
         internal static UnityModManager.ModEntry Mod;
+        internal static Settings Settings;
 
         // Livery IDs of modded steam locomotives that count as steam on top of CarTypes.IsSteamLocomotive.
         // Custom Car Loader already reports locomotives whose author set its IsSteamLocomotive flag there.
@@ -25,9 +26,13 @@ namespace NoDiesel
             Mod = modEntry;
             try
             {
+                Settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
                 LoadIds();
-                new Harmony(modEntry.Info.Id).PatchAll(Assembly.GetExecutingAssembly());
-                modEntry.OnGUI = SteamTools.OnGUI;
+                var harmony = new Harmony(modEntry.Info.Id);
+                harmony.PatchAll(Assembly.GetExecutingAssembly());
+                RailroadContracts.Patch(harmony);
+                modEntry.OnGUI = OnGUI;
+                modEntry.OnSaveGUI = e => Settings.Save(e);
                 modEntry.OnUpdate = SteamTools.OnUpdate;
             }
             catch (Exception e)
@@ -36,6 +41,12 @@ namespace NoDiesel
                 return false;
             }
             return true;
+        }
+
+        static void OnGUI(UnityModManager.ModEntry modEntry)
+        {
+            RailroadContracts.OnGUI();
+            SteamTools.OnGUI(modEntry);
         }
 
         static void LoadIds()
@@ -104,6 +115,14 @@ namespace NoDiesel
             l != null && (CarTypes.IsSteamLocomotive(l) || ExtraSteamIds.Contains(l.id));
 
         internal static void Log(string msg) => Mod?.Logger.Log(msg);
+    }
+
+    public class Settings : UnityModManager.ModSettings
+    {
+        // Only used when Railroad Contracts is installed.
+        public bool RailroadContractsSteamOnly = true;
+
+        public override void Save(UnityModManager.ModEntry modEntry) => Save(this, modEntry);
     }
 
     // ---------- Starting licenses: S060 (+ Jk3's S080 if Custom Licenses is installed) instead of DE2 ----------
@@ -345,7 +364,7 @@ namespace NoDiesel
 
         static TrainCarLivery s060;
 
-        static TrainCarLivery GetS060()
+        internal static TrainCarLivery GetS060()
         {
             if (s060 != null) return s060;
             s060 = Resources.FindObjectsOfTypeAll<TrainCarLivery>()
@@ -393,6 +412,82 @@ namespace NoDiesel
             {
                 Main.Mod?.Logger.LogException(e);
             }
+        }
+    }
+
+    // ---------- Railroad Contracts (optional): its starter DE2 and its locomotive shop ----------
+
+    // Railroad Contracts turns off station spawns, gives a new career one owned DE2 and sells
+    // locomotives at the kiosk, with their license. Both bypass the patches above, so when it is
+    // installed (and the setting is on) its starter becomes an S060 and its shop drops every
+    // vehicle that needs a blocked license. Patched by name: its classes are internal, and a
+    // version that renames them just leaves this part off.
+    internal static class RailroadContracts
+    {
+        const string ShopType = "Contracts.Mod.Runtime.LocoShop";
+
+        static bool installed;
+
+        static bool Active => installed && Main.Settings.RailroadContractsSteamOnly;
+
+        internal static void Patch(Harmony harmony)
+        {
+            var shop = AccessTools.TypeByName(ShopType);
+            if (shop == null) return; // not installed
+            var catalogue = AccessTools.Method(shop, "Catalogue");
+            var deliver = AccessTools.Method(shop, "Deliver");
+            if (catalogue == null || deliver == null)
+            {
+                Main.Log("Railroad Contracts found, but not its shop methods: steam-only shop and starter are off");
+                return;
+            }
+            harmony.Patch(catalogue, postfix: new HarmonyMethod(typeof(RailroadContracts), nameof(CataloguePostfix)));
+            harmony.Patch(deliver, prefix: new HarmonyMethod(typeof(RailroadContracts), nameof(DeliverPrefix)));
+            installed = true;
+            Main.Log("Railroad Contracts found: steam-only shop and starter patched");
+        }
+
+        internal static void OnGUI()
+        {
+            if (!installed) return;
+            Main.Settings.RailroadContractsSteamOnly = GUILayout.Toggle(Main.Settings.RailroadContractsSteamOnly,
+                " Railroad Contracts: S060 as the starter locomotive, no diesels in the kiosk shop");
+        }
+
+        // A fresh list on every call: removing from it changes nothing else.
+        static void CataloguePostfix(object __result)
+        {
+            try
+            {
+                if (!Active || !(__result is System.Collections.IList items)) return;
+                for (int i = items.Count - 1; i >= 0; i--)
+                {
+                    var cars = Traverse.Create(items[i]).Field("Cars").GetValue<List<TrainCarLivery>>();
+                    if (cars != null && cars.Any(c => c?.requiredLicense != null && Main.BlockedLicenseIds.Contains(c.requiredLicense.id)))
+                        items.RemoveAt(i);
+                }
+            }
+            catch (Exception e) { Main.Mod?.Logger.LogException(e); }
+        }
+
+        // Deliver is only called for the new career's starter.
+        static void DeliverPrefix(ref IEnumerable<TrainCarLivery> cars)
+        {
+            try
+            {
+                if (!Active || cars == null) return;
+                var list = cars.ToList();
+                if (list.Count != 1 || list[0]?.v1 != TrainCarType.LocoShunter) return;
+                var s060 = StationLocoSpawner_Start_Patch.GetS060();
+                if (s060 == null)
+                {
+                    Main.Log("Railroad Contracts starter: S060 livery not found, keeping the DE2");
+                    return;
+                }
+                cars = new[] { s060 };
+                Main.Log("Railroad Contracts starter: S060 instead of the DE2");
+            }
+            catch (Exception e) { Main.Mod?.Logger.LogException(e); }
         }
     }
 }

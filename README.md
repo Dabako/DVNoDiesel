@@ -59,6 +59,11 @@ Both files are created in the mod folder on first start. One entry per line, `#`
   Not yet tested in a multiplayer session. Joining players already get the steam tools from the
   Multiplayer mod, so only the host needs the button.
 - **Steam Start** (Nexus 853) also changes the starting licenses. Use one or the other.
+- **Railroad Contracts:** optional. That mod turns off station spawns, gives a new career one DE2 and
+  sells locomotives at the kiosk together with their license. When it is installed, No Diesel makes
+  its starter an S060 and drops every vehicle that needs a license from `blocked_licenses.txt` from
+  its shop. A toggle in the mod's settings (Ctrl+F10) turns this off; it only shows when Railroad
+  Contracts is installed. Diesels already bought or already standing in a save are kept.
 
 ## Building
 

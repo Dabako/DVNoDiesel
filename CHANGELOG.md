@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Optional Railroad Contracts support: when it is installed, its new-career starter is an S060
+  instead of a DE2, and its kiosk shop no longer sells vehicles that need a blocked license.
+  Can be turned off in the mod's settings (Ctrl+F10). Without Railroad Contracts nothing changes.
+
 ## 0.5.1 (2026-11-04)
 
 - New careers (tutorial skipped) now start with a shovel, lighter and oil can,
